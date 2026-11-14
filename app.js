@@ -579,13 +579,30 @@ async function hs(p, u) {
 }
 let AM = 'in';
 
+// Password field with a show / hide (eye) button.
+const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+  EYE_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M3 3l18 18"/></svg>';
+
+function pw(id, placeholder, autocomplete, keyAttr) {
+  return `<div class="pw"><input id="${id}" type="password" placeholder="${placeholder}" autocomplete="${autocomplete}" maxlength="40" ${keyAttr}><button type="button" class="eye" onmousedown="event.preventDefault()" onclick="togglePw('${id}',this)" aria-label="Show password" title="Show password">${EYE}</button></div>`;
+}
+
+// Switch a password box between hidden (dots) and visible (text).
+function togglePw(id, btn) {
+  const input = $('#' + id), show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+  btn.innerHTML = show ? EYE_OFF : EYE;
+  btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+  btn.title = show ? 'Hide password' : 'Show password';
+}
+
 function authView(m) {
   AM = m;
   const k = `onkeydown="if(event.key==='Enter')authGo()"`,
     t = (x, l) => `<button class="at${AM===x?' on':''}" onclick="authView('${x}')">${l}</button>`;
   $('#au').innerHTML = (m === 'fp' ? `<button class="bk" onclick="authView('in')">← Back</button><h3 style="margin:0 0 4px;text-align:center">Reset Password</h3><p class="mu" style="font-size:.8rem;margin:0 0 10px;text-align:center">Enter your username and a new password.</p>` : `<button class="bk" onclick="authClose()">← Back</button><h3 style="margin:0 0 10px;text-align:center">${m==='in'?'Log In':'Create Account'}</h3>`) +
-    `<input id="au1" placeholder="Username" autocomplete="username" maxlength="20" ${k}><input id="au2" type="password" placeholder="${m==='fp'?'New Password':'Password'}" autocomplete="${m==='in'?'current-password':'new-password'}" maxlength="40" ${k}>` +
-    (m !== 'in' ? `<input id="au3" type="password" placeholder="Confirm Password" maxlength="40" ${k}>` : '') +
+    `<input id="au1" placeholder="Username" autocomplete="username" maxlength="20" ${k}>${pw('au2',m==='fp'?'New Password':'Password',m==='in'?'current-password':'new-password',k)}` +
+    (m !== 'in' ? `${pw('au3','Confirm Password','new-password',k)}` : '') +
     `<div class="hint" id="auh"></div><button class="b" style="width:100%" onclick="authGo()">${m==='in'?'Log In':m==='up'?'Create Account':'Reset Password'}</button>` +
     (m === 'in' ? `<a class="fpl" onclick="authView('fp')">Forgot password?</a><a class="fpl" onclick="authView('up')">No account yet? Sign Up</a>` : m === 'up' ? `<a class="fpl" onclick="authView('in')">Already have an account? Log In</a>` : '')
 }

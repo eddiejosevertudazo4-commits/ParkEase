@@ -1756,3 +1756,47 @@ body.w nav,body.w main {
 .wbt .b {
   min-width: 132px
 }
+
+/* ===== PASSWORD SHOW / HIDE (EYE) BUTTON ===== */
+.pw {
+  position: relative;
+  margin-bottom: 8px;
+}
+
+#au .pw input {
+  margin-bottom: 0;
+  padding-right: 46px;
+}
+
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
+.eye {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--mu);
+  cursor: pointer;
+  transition: color .2s, background .2s;
+}
+
+.eye:hover {
+  color: var(--tx);
+  background: rgba(127, 127, 127, .18);
+}
+
+.eye svg {
+  width: 19px;
+  height: 19px;
+}
