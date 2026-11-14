@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ParkEase - Smart Parking Management System</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- Navigation bar, welcome screen, and page container. Pages are drawn into <main id="v"> by app.js -->
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="iCg" viewBox="0 0 48 24">
+    <path fill="currentColor" d="M3 17v-4l5-1.5 5-6.5h17l6.5 6.5 5.5 1.5v4h-4a4.5 4.5 0 00-9 0H16a4.5 4.5 0 00-9 0zM15 8.5l-3 3.5h8V8.5zm7 0V12h11l-3.5-3.5z" fill-rule="evenodd"/>
+    <circle cx="11.5" cy="18" r="3" fill="#64748b"/>
+    <circle cx="36.5" cy="18" r="3" fill="#64748b"/>
+  </symbol>
+  <symbol id="iC" viewBox="0 0 60 24">
+    <defs>
+      <linearGradient id="gc" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#9bd8ff"/>
+        <stop offset=".55" stop-color="#2f8fe0"/>
+        <stop offset="1" stop-color="#0b4f9c"/>
+      </linearGradient>
+      <linearGradient id="gw" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#f0f9ff"/>
+        <stop offset="1" stop-color="#8cc3ee"/>
+      </linearGradient>
+      <linearGradient id="gb" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#fff7c2" stop-opacity=".9"/>
+        <stop offset="1" stop-color="#fde68a" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <ellipse cx="24" cy="22.4" rx="20" ry="1.6" fill="#000" opacity=".22"/>
+    <path d="M3 17.5v-4.2c0-1.4 1-2.6 2.4-2.9l5.4-1.2L15 4.6c.5-.7 1.3-1 2.1-1h13.8c.9 0 1.7.4 2.2 1l4.3 4.8 3.4.9c1.2.3 2 1.4 2 2.6v3.6c0 .8-.7 1.5-1.5 1.5H4.5C3.7 19 3 18.3 3 17.5z" fill="url(#gc)"/>
+    <path d="M16.2 6.2c.3-.4.7-.6 1.2-.6h5.4v4.6H12.6zM25 5.6h5c.5 0 .9.2 1.2.6l3 3.9H25z" fill="url(#gw)"/>
+    <path d="M6 12.2c3-1.1 9-1.5 17-1.3" stroke="#fff" stroke-opacity=".6" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+    <path class="bm" d="M45 13L59 8.5v9z" fill="url(#gb)"/>
+    <circle class="hl" cx="43.8" cy="13" r="1.2" fill="#fde68a"/>
+    <circle class="tl" cx="3.9" cy="13.4" r="1" fill="#fca5a5"/>
+    <circle cx="12" cy="18.6" r="3.7" fill="#1e293b"/>
+    <circle cx="12" cy="18.6" r="1.7" fill="#cbd5e1"/>
+    <circle cx="36.5" cy="18.6" r="3.7" fill="#1e293b"/>
+    <circle cx="36.5" cy="18.6" r="1.7" fill="#cbd5e1"/>
+  </symbol>
+  <symbol id="iM" viewBox="0 0 60 24">
+    <defs>
+      <linearGradient id="gm" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#8cf0df"/>
+        <stop offset=".6" stop-color="#14b8a6"/>
+        <stop offset="1" stop-color="#0b6b63"/>
+      </linearGradient>
+    </defs>
+    <ellipse cx="24" cy="22.4" rx="20" ry="1.6" fill="#000" opacity=".22"/>
+    <path d="M10 17.5l6-6h9l5 6M30 17.5l3-8h4" fill="none" stroke="#475569" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M16.5 8.6c0-1.2 1-2.1 2.2-2.1H27c1.2 0 2 1 1.8 2.2L28 12.2H17z" fill="url(#gm)"/>
+    <path d="M18.5 8c2-.6 5-.7 7.5-.3" stroke="#fff" stroke-opacity=".65" stroke-width="1" fill="none" stroke-linecap="round"/>
+    <path d="M10.5 10.2h6.2v2.2h-6.2z" fill="#0f172a"/>
+    <path d="M33 9.5h4.8" stroke="#0f172a" stroke-width="2" stroke-linecap="round"/>
+    <path class="bm" d="M40 10.8L56 6v9.6z" fill="url(#gb)"/>
+    <circle class="hl" cx="38.6" cy="10.8" r="1.7" fill="#fde68a"/>
+    <circle class="tl" cx="10.2" cy="11.3" r="1" fill="#fca5a5"/>
+    <circle cx="10" cy="17.5" r="5" fill="#1e293b"/>
+    <circle cx="10" cy="17.5" r="2.6" fill="#cbd5e1"/>
+    <circle cx="10" cy="17.5" r=".9" fill="#1e293b"/>
+    <circle cx="38" cy="17.5" r="5" fill="#1e293b"/>
+    <circle cx="38" cy="17.5" r="2.6" fill="#cbd5e1"/>
+    <circle cx="38" cy="17.5" r=".9" fill="#1e293b"/>
+  </symbol>
+  <symbol id="iP" viewBox="0 0 24 24">
+    <path d="M8 20V5h5.5a4.2 4.2 0 010 8.4H8" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="iK" viewBox="0 0 24 24">
+    <path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="iW" viewBox="0 0 24 24"><text x="12" y="18" text-anchor="middle" font-size="17" font-weight="700" fill="#fff" font-family="Inter,Arial,sans-serif">₱</text></symbol>
+  <symbol id="iG" viewBox="0 0 24 24">
+    <path d="M5 19v-6M12 19V6M19 19v-9" stroke="#fff" stroke-width="3.4" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="iL" viewBox="0 0 24 24">
+    <path d="M3 12h4l2.5-6 4 12 2.5-6H21" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="iMg" viewBox="0 0 48 24">
+    <g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="10" cy="17" r="5.5"/>
+      <circle cx="38" cy="17" r="5.5"/>
+      <path d="M10 17l7-8h9l4 8M26 9l-2-4h-5M30 17l3-9h4"/>
+    </g>
+  </symbol>
+</svg>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="lgg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5eb8f2"/>
+      <stop offset="1" stop-color="#0a4a87"/>
+    </linearGradient>
+  </defs>
+  <symbol id="logo" viewBox="0 0 48 48">
+    <rect width="48" height="48" rx="13" fill="url(#lgg)"/>
+    <rect x=".75" y=".75" width="46.5" height="46.5" rx="12.5" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="1.5"/>
+    <path d="M17 35V12.5h8.5a7.5 7.5 0 010 15H17" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M9 40.5q3.75-3 7.5 0t7.5 0 7.5 0 7.5 0" fill="none" stroke="#bfe3ff" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="25.5" cy="20" r="2" fill="#bfe3ff"/>
+    <path d="M4 15C4 8 9 4 16 4h17C24 5 9 7 4 15z" fill="#fff" opacity=".3"/>
+  </symbol>
+</svg>
+<div class="bg" id="bg">
+  <svg class="wv" viewBox="0 0 1200 120" preserveAspectRatio="none">
+    <path fill="rgba(255,255,255,.1)" d="M0 60Q150 10 300 60T600 60T900 60T1200 60V120H0Z"/>
+  </svg>
+  <svg class="wv b" viewBox="0 0 1200 120" preserveAspectRatio="none">
+    <path fill="rgba(147,197,253,.14)" d="M0 50Q150 100 300 50T600 50T900 50T1200 50V120H0Z"/>
+  </svg>
+</div>
+<nav class="glass">
+  <div class="brand">
+    <svg class="logo">
+      <use href="#logo"/>
+    </svg><span class="wm"><span>Park<b>Ease</b></span><small>SMART PARKING</small></span></div>
+  <a href="#dashboard" data-p="dashboard">Dashboard</a>
+  <a href="#entry" data-p="entry">Registry Entry</a>
+  <a href="#history" data-p="history">Parking History</a>
+  <a href="#payments" data-p="payments">Payments</a>
+  <a href="#about" data-p="about">About Us</a><span class="clock"><span class="live"></span><span id="clk"></span></span><button id="ac" onclick="acct()" aria-label="Account">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="8" r="4"/>
+      <path d="M4 21a8 8 0 0116 0"/>
+    </svg>
+  </button>
+  <button id="th" onclick="theme()" aria-label="Toggle theme"></button>
+  <button id="bell" onclick="togN()" aria-label="Notifications">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3a6 6 0 00-6 6v4l-2 3h16l-2-3V9a6 6 0 00-6-6zM10 19a2 2 0 004 0"/>
+    </svg><span class="c" id="nc" hidden>0</span></button>
+  <button id="lo" onclick="logout()">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>
+    </svg>Log Out</button>
+</nav>
+<div id="np" class="glass"></div>
+<div id="wl" hidden>
+  <div class="glass wp" id="wp">
+    <svg class="logo">
+      <use href="#logo"/>
+    </svg>
+    <h1 id="wh" style="--i:1">Park<b>Ease</b></h1>
+    <div class="tg" style="--i:2">SMART PARKING MANAGEMENT SYSTEM</div>
+    <div class="wg" id="wg" style="--i:3"></div>
+    <div class="wd" id="wd" style="--i:3"></div>
+    <div class="wr" id="wr" style="--i:3"></div>
+    <div class="wa" id="wa" style="--i:4"></div>
+    <div class="wbt" style="--i:5">
+      <button class="b" onclick="authOpen('in')">Log In</button>
+      <button class="b gh" onclick="authOpen('up')">Sign Up</button>
+    </div>
+    <p class="mu" style="font-size:.75rem;margin:14px 0 0;--i:6">Click anywhere to send a vehicle across the screen</p>
+  </div>
+  <div class="mo" id="aum" hidden onclick="if(event.target===this)authClose()">
+    <div class="slip glass">
+      <div id="au"></div>
+    </div>
+  </div>
+  <div class="wroad" id="wrd"></div>
+</div>
+<main id="v"></main>
+<div id="t"></div>
+<div id="md"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
