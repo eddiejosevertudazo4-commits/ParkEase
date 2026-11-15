@@ -11,7 +11,7 @@
 
 /* ==================================================================
    1. DATA MODEL AND CONSTANTS
-   Database tables (stored in the browser's localStorage under one key):
+   Database tables (PostgreSQL in Supabase; notifications stay in the browser):
    - ParkingSlots    -> SL (10 fixed slots: M1-M4 motorcycle, C1-C6 car)
    - Vehicles        -> db.vehicles (one record per plate)
    - ParkingSessions -> db.sessions (one record per parking visit;
@@ -29,18 +29,20 @@ let db = {vehicles: {}, sessions: [], notes: [], seq: 1, unread: 0},
   selType = 'M';
 const KEY = 'smartparking.v1';
 
-// Read the saved records (the 'database') from localStorage.
+// Read the saved notifications from localStorage (parking data is in Supabase).
 function load() {
+  // Only notifications are kept in the browser now; parking data comes from Supabase.
   try {
-    const r = localStorage.getItem(KEY);
-    if(r) db = JSON.parse(r)
+    const r = JSON.parse(localStorage.getItem(KEY) || '{}');
+    db.notes = r.notes || [];
+    db.unread = r.unread || 0
   } catch(e) {}
 }
 
-// Write the records back to localStorage after every change.
+// Save notifications to localStorage.
 function save() {
   try {
-    localStorage.setItem(KEY, JSON.stringify(db))
+    localStorage.setItem(KEY, JSON.stringify({notes: db.notes, unread: db.unread}))
   } catch(e) {}
 }
 
@@ -129,23 +131,25 @@ function togN() {
  *  5. If no slot is free, reject - nothing is saved.
  *  6. Otherwise save the vehicle and a new session, then return the slot.
  */
-function register(plateRaw, type, entryMs) {
+async function register(plateRaw, type, entryMs) {
+  await refreshData();
+  if(lastErr) return {ok: 0, m: 'Cannot reach the database. Check your internet connection.'};
   const plate = String(plateRaw || '').trim().toUpperCase().replace(/\s+/g, ' ');
   if(!PLATE.test(plate)) return {ok: 0, m: 'Invalid plate number. Use 3–10 letters or digits.'};
   if(type !== 'M' && type !== 'C') return {ok: 0, m: 'Invalid vehicle type.'};
   if(!Number.isFinite(entryMs) || entryMs > Date.now() + 60000) return {ok: 0, m: 'Invalid entry time (cannot be in the future).'};
-  if(active().some(s => s.plate === plate)) return {
-    ok: 0,
-    m: 'Plate ' + plate + ' is already parked. Plates must be unique among active vehicles.'
-  };
+  if(active().some(s => s.plate === plate)) return {ok: 0, m: 'Plate ' + plate + ' is already parked. Plates must be unique among active vehicles.'};
   const slot = freeSlot(type);
   if(!slot) return {
     ok: 0,
     m: 'No free ' + NAME[type].toLowerCase() + ' slot. ' + NAME[type] + ' rejected' + (type === 'M' ? ' (car slots cannot be used by motorcycles).' : '.')
   };
-  db.vehicles[plate] = {plate, type};
-  db.sessions.push({id: db.seq++, plate, type, slot: slot.id, entry: entryMs, exit: null, fee: null});
-  save();
+  // Save to the online database (the database ALSO enforces the rules)
+  let r = await sb.from('vehicles').upsert({plate, type});
+  if(r.error) return {ok: 0, m: dbErr(r.error)};
+  r = await sb.from('parking_sessions').insert({plate, type, slot: slot.id, entry_time: new Date(entryMs).toISOString()});
+  if(r.error) return {ok: 0, m: dbErr(r.error)};
+  await refreshData(true);
   return {ok: 1, m: plate + ' (' + NAME[type] + ') assigned to slot ' + slot.id + '.'};
 }
 
@@ -154,21 +158,20 @@ function register(plateRaw, type, entryMs) {
  * the fee, and save. The slot becomes free again because it no longer
  * has an active session, so the next vehicle can reuse it.
  */
-function exitV(id) {
+async function exitV(id) {
+  await refreshData();
   const s = db.sessions.find(x => x.id === id && x.exit == null);
   if(!s) return {ok: 0, m: 'No active session found.'};
-  s.exit = Date.now();
-  s.fee = fee(s.type, s.entry, s.exit);
-  save();
-  return {
-    ok: 1,
-    m: s.plate + ' exited slot ' + s.slot + '. Fee: ' + peso(s.fee) + '. Slot is now free.'
-  }
+  const now = Date.now(), f = fee(s.type, s.entry, now);
+  const {data, error} = await sb.from('parking_sessions').update({exit_time: new Date(now).toISOString(), fee: f}).eq('id', id).is('exit_time', null).select();
+  if(error || !data.length) return {ok: 0, m: error ? dbErr(error) : 'No active session found.'};
+  await refreshData(true);
+  return {ok: 1, m: s.plate + ' exited slot ' + s.slot + '. Fee: ' + peso(f) + '. Slot is now free.'}
 }
 
-function confirmExit(id) {
+async function confirmExit(id) {
   closeM();
-  const r = exitV(id);
+  const r = await exitV(id);
   note(r.ok ? 'o' : 'e', r.m);
   route()
 }
@@ -287,26 +290,26 @@ function drive(t) {
   setTimeout(() => s.remove(), 2500)
 }
 
-function sub() {
-  const r = register($('#pl').value, selType, new Date($('#et').value).getTime());
+async function sub() {
+  const r = await register($('#pl').value, selType, new Date($('#et').value).getTime());
   note(r.ok ? 'o' : 'e', r.m);
   if(r.ok) {
     drive(selType);
-    $('#pl').value = ''
+    if($('#pl')) $('#pl').value = ''
   }
-  pv()
+  if($('#pl')) pv()
 }
 
-function demo() {
+async function demo() {
   let bad = null;
-  ['MC 0001', 'MC 0002', 'MC 0003', 'MC 0004', 'MC 0005'].forEach(p => {
-    if(active().some(s => s.plate === p)) return;
-    const r = register(p, 'M', Date.now());
+  for(const p of ['MC 0001', 'MC 0002', 'MC 0003', 'MC 0004', 'MC 0005']) {
+    if(active().some(s => s.plate === p)) continue;
+    const r = await register(p, 'M', Date.now());
     if(!r.ok) bad = r
-  });
+  }
   drive('M');
   note(bad ? 'e' : 'i', bad ? bad.m : 'Demo plates already parked.');
-  pv()
+  if($('#pl')) pv()
 }
 
 function sq() {
@@ -502,7 +505,7 @@ function wTick() {
   $('#wg').textContent = (h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening') + ', welcome back.';
   $('#wd').textContent = n.toLocaleString('en-PH', {dateStyle: 'full', timeStyle: 'medium'});
   const f = t => SL.filter(s => s.type === t && !bySlot(s.id)).length;
-  $('#wa').innerHTML = '<span>Motorcycle Slots Available: ' + f('M') + ' / 4</span><span>Car Slots Available: ' +
+  $('#wa').innerHTML = '<span>Motorcycle Slots: 4</span><span>Car Slots: 6</span>'
     f('C') + ' / 6</span>'
 }
 
@@ -546,7 +549,6 @@ function buildW() {
    Passwords are hashed with SHA-256 before being stored.
    ================================================================== */
 
-const UK = 'parkease.users',
   ssg = k => {
   try {
     return sessionStorage.getItem(k)
@@ -555,28 +557,8 @@ const UK = 'parkease.users',
   }
 };
 
-function getU() {
-  try {
-    return JSON.parse(localStorage.getItem(UK) || '{}')
-  } catch(e) {
-    return {}
-  }
-}
 
-function setU(o) {
-  try {
-    localStorage.setItem(UK, JSON.stringify(o))
-  } catch(e) {}
-}
 
-async function hs(p, u) {
-  try {
-    const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('parkease:' + u + ':' + p));
-    return [...new Uint8Array(d)].map(x => x.toString(16).padStart(2, '0')).join('')
-  } catch(e) {
-    return btoa(unescape(encodeURIComponent('parkease:' + u + ':' + p)))
-  }
-}
 let AM = 'in';
 
 // Password field with a show / hide (eye) button.
@@ -608,61 +590,61 @@ function authView(m) {
 }
 
 async function authGo() {
-  const u = $('#au1').value.trim(),
-    p = $('#au2').value,
-    k = u.toLowerCase(),
-    us = getU(),
-    h = $('#auh'),
-    err = m => {
+  const u = $('#au1').value.trim(), p = $('#au2').value, k = u.toLowerCase(), h = $('#auh');
+  const err = m => {
     h.style.color = 'var(--bad)';
     h.textContent = m
   };
   if(!/^[A-Za-z0-9_.]{3,20}$/.test(u)) return err('Username must be 3–20 letters, numbers, "." or "_".');
+  h.style.color = 'var(--mu)';
+  h.textContent = 'Please wait…';
   if(AM === 'in') {
-    if(!us[k] || us[k].h !== await hs(p, k)) return err('Incorrect username or password.');
-    return loginAs(k)
+    const {data, error} = await sb.auth.signInWithPassword({email: em(k), password: p});
+    if(error) return err('Incorrect username or password.');
+    return loginAs(data.user)
   }
   if(p.length < 6) return err('Password must be at least 6 characters.');
   if(p !== $('#au3').value) return err('Passwords do not match.');
   if(AM === 'up') {
-    if(us[k]) return err('That username is already taken.');
-    us[k] = {u, h: await hs(p, k), at: Date.now()};
-    setU(us);
-    return loginAs(k)
+    const {data, error} = await sb.auth.signUp({email: em(k), password: p, options: {data: {username: u}}});
+    if(error) return err(/registered|exists/i.test(error.message) ? 'That username is already taken.' : error.message);
+    if(!data.session) return err('Turn OFF "Confirm email" in Supabase (Authentication > Providers > Email), then try again.');
+    return loginAs(data.user)
   }
-  if(!us[k]) return err('No account found with that username.');
-  us[k].h = await hs(p, k);
-  setU(us);
+  const r = await sb.rpc('reset_password', {uname: k, newpass: p});
+  if(r.error) return err('Could not reset the password. Run the reset_password SQL in Supabase first.');
+  if(!r.data) return err('No account found with that username.');
   authView('in');
   $('#auh').style.color = 'var(--ok)';
   $('#auh').textContent = 'Password updated. Please log in.'
 }
 
-function loginAs(k) {
-  const us = getU();
-  us[k].last = Date.now();
-  setU(us);
-  try {
-    sessionStorage.setItem('pe_u', k)
-  } catch(e) {}
+async function loginAs(user) {
+  CU = cu(user);
+  await refreshData(true);
   enter();
-  note('o', 'Signed in as ' + us[k].u + '.')
+  route();
+  startSync();
+  note('o', 'Signed in as ' + CU.u + '.')
 }
 
 function acct() {
-  const a = getU()[ssg('pe_u')];
+  const a = CU;
   if(!a) return;
   const r = (x, y) => `<div class="sl"><span>${x}</span><b>${y}</b></div>`;
   $('#np').style.display = 'none';
   $('#md').innerHTML = `<div class="mo" onclick="if(event.target===this)closeM()"><div class="slip glass" style="text-align:center"><div class="av">${esc(a.u[0].toUpperCase())}</div><h3 style="margin-bottom:12px">${esc(a.u)}</h3><div class="sd"></div>${r('Username',esc(a.u))}${r('Password','••••••••')}${r('Account Created',fdt(a.at))}${r('Last Log In',fdt(a.last||a.at))}<div class="sd"></div><div class="sb"><button class="b gh" onclick="closeM()">Close</button><button class="b" style="background:var(--bad)" onclick="logout()">Log Out</button></div></div></div>`
 }
 
-function doLogout(m) {
+async function doLogout(m) {
   closeM();
+  stopSync();
   try {
-    sessionStorage.removeItem('pe_w');
-    sessionStorage.removeItem('pe_u')
+    await sb.auth.signOut()
   } catch(e) {}
+  CU = null;
+  db.sessions = [];
+  lastSig = '';
   showW();
   note('i', m || 'You have been logged out.')
 }
@@ -671,12 +653,15 @@ function resetAsk() {
   $('#md').innerHTML = `<div class="mo" onclick="if(event.target===this)closeM()"><div class="slip glass" style="text-align:center"><h3>Delete All Data?</h3><p class="mu" style="margin:0">Are you sure you want to delete all data? Every parking record, payment and notification will be permanently removed, and you will be logged out automatically. This cannot be undone.</p><div class="sb"><button class="b gh" onclick="closeM()">Cancel</button><button class="b" style="background:var(--bad)" onclick="resetGo()">Yes, Delete All</button></div></div></div>`
 }
 
-function resetGo() {
-  db = {vehicles: {}, sessions: [], notes: [], seq: 1, unread: 0};
+async function resetGo() {
+  closeM();
+  await sb.from('parking_sessions').delete().gt('id', 0);
+  await sb.from('vehicles').delete().neq('plate', '');
+  db.notes = [];
+  db.unread = 0;
   save();
   updN();
-  route();
-  doLogout('All data has been deleted. You have been logged out.')
+  await doLogout('All data has been deleted. You have been logged out.')
 }
 
 function authOpen(m) {
@@ -733,12 +718,14 @@ function delH(id) {
     id + ')">Delete</button></div></div></div>'
 }
 
-function confirmDelH(id) {
+async function confirmDelH(id) {
   closeM();
-  const n = db.sessions.length;
-  db.sessions = db.sessions.filter(x => !(x.id === id && x.exit));
-  save();
-  if(db.sessions.length < n) note('i', 'History record removed.');
+  const {error} = await sb.from('parking_sessions').delete().eq('id', id).not('exit_time', 'is', null);
+  if(error) note('e', dbErr(error));
+  else {
+    await refreshData(true);
+    note('i', 'History record removed.')
+  }
   route()
 }
 
@@ -769,7 +756,7 @@ function initWelcome() {
     seen = sessionStorage.getItem('pe_w') && sessionStorage.getItem('pe_u')
   } catch(e) {}
   const w = $('#wl');
-  if(!seen) showW();
+  
   w.addEventListener('pointermove', e => {
     const p = $('#wp'),
       r = w.getBoundingClientRect();
@@ -940,6 +927,91 @@ addEventListener('keydown', e => {
 });
 
 /* ==================================================================
+   16. ONLINE DATABASE (Supabase)
+   Parking data and user accounts live in Supabase (PostgreSQL), so every
+   user sees the same records. The database also enforces the rules:
+   one active vehicle per slot, unique active plate, matching slot type.
+   ================================================================== */
+
+const SB_URL = 'https://wjvsnctouymtzlmlaqga.supabase.co',
+  SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndqdnNuY3RvdXltdHpsbWxhcWdhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ2Nzk5MjAsImV4cCI6MjExMDI1NTkyMH0.xwxUlsrI6MZ5xwlBeNoxyCCbx4F5dZ11YQ2AfFjBt04';
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
+let CU = null, lastSig = '', lastErr = false, SYNC = null;
+
+// Usernames become hidden emails because Supabase Auth logs in with email.
+const em = u => u.toLowerCase() + '@parkease.app';
+
+// Convert a database row into the object shape the app uses.
+const toApp = r => ({
+  id: r.id, plate: r.plate, type: r.type, slot: r.slot,
+  entry: new Date(r.entry_time).getTime(),
+  exit: r.exit_time ? new Date(r.exit_time).getTime() : null,
+  fee: r.fee == null ? null : Number(r.fee)
+});
+
+// Current user info shown on the Account card.
+function cu(u) {
+  return {
+    u: (u.user_metadata && u.user_metadata.username) || u.email.split('@')[0],
+    at: new Date(u.created_at).getTime(),
+    last: new Date(u.last_sign_in_at || u.created_at).getTime()
+  }
+}
+
+// Turn database errors into readable messages.
+function dbErr(e) {
+  const m = (e && e.message) || '';
+  if(/one_active_per_slot/.test(m)) return 'That slot was just taken by another user. Please try again.';
+  if(/one_active_per_plate/.test(m)) return 'That plate is already parked. Plates must be unique among active vehicles.';
+  if(/does not match/.test(m)) return 'Vehicle type does not match the slot type.';
+  return 'Database error: ' + m
+}
+
+// Download all sessions. Returns true when something changed (or when forced).
+async function refreshData(force) {
+  const {data, error} = await sb.from('parking_sessions').select('*').order('id');
+  lastErr = !!error;
+  if(error) return false;
+  const rows = data.map(toApp), sig = JSON.stringify(rows);
+  db.sessions = rows;
+  const changed = sig !== lastSig;
+  lastSig = sig;
+  return changed || !!force
+}
+
+// Real time: check the database every 5 seconds for changes made by others.
+function startSync() {
+  stopSync();
+  SYNC = setInterval(async () => {
+    if(!CU) return;
+    if(await refreshData()) {
+      const a = document.activeElement;
+      if(a && a.tagName === 'INPUT' && a.closest('#v')) {
+        lastSig = '';
+        return
+      }
+      if((location.hash.slice(1) || 'dashboard') === 'entry') pv();
+      else route()
+    }
+  }, 5000)
+}
+
+function stopSync() {
+  clearInterval(SYNC)
+}
+
+// On page load: keep the user signed in if a session exists.
+async function boot() {
+  const {data} = await sb.auth.getSession();
+  if(data.session) {
+    CU = cu(data.session.user);
+    await refreshData(true);
+    route();
+    startSync()
+  } else showW()
+}
+
+/* ==================================================================
    15. APP START-UP
    Restore theme and saved data, show the first page, start the 1-second
    real-time timer, and open the welcome screen.
@@ -951,6 +1023,7 @@ updN();
 route();
 setInterval(tick, 1000);
 initWelcome();
+boot();
 addEventListener('hashchange', route);
 addEventListener('storage', e => {
   if(e.key === KEY) {
